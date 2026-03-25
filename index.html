@@ -3,96 +3,171 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SOP 快速記錄</title>
+  <title>SOP 快速記錄 v5</title>
   <style>
-    body {font-family: system-ui; margin:0; padding:20px; background:#111; color:#fff; line-height:1.6;}
-    h1 {text-align:center; color:#0f0;}
-    input, textarea, button {width:100%; padding:14px; margin:10px 0; font-size:17px; border-radius:10px;}
-    button {background:#0f0; color:#000; font-weight:bold;}
-    .record {background:#222; padding:15px; margin:15px 0; border-radius:10px;}
-    pre {background:#1a1a1a; padding:15px; border-radius:8px; overflow:auto;}
+    :root {
+      --primary: #00ff88;
+      --bg: #0a0a0a;
+      --card: #1a1a1a;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: var(--bg);
+      color: #eee;
+      line-height: 1.6;
+    }
+    h1 {
+      text-align: center;
+      color: var(--primary);
+      margin-bottom: 30px;
+      font-size: 28px;
+    }
+    .card {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+    input, textarea {
+      width: 100%;
+      padding: 14px;
+      margin: 10px 0;
+      background: #222;
+      border: none;
+      border-radius: 12px;
+      color: #fff;
+      font-size: 16px;
+    }
+    button {
+      width: 100%;
+      padding: 16px;
+      margin: 10px 0;
+      background: var(--primary);
+      color: #000;
+      border: none;
+      border-radius: 12px;
+      font-size: 17px;
+      font-weight: bold;
+    }
+    .history-item {
+      background: #222;
+      border-radius: 12px;
+      padding: 16px;
+      margin: 12px 0;
+    }
+    .time { color: #00ff88; font-size: 14px; }
+    pre {
+      background: #111;
+      padding: 15px;
+      border-radius: 10px;
+      overflow-x: auto;
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
-  <h1>🔥 SOP 快速記錄 (GitHub Pages)</h1>
+  <h1>🔥 SOP 快速記錄 v5</h1>
 
-  <label>日期時間</label>
-  <input type="text" id="time" value="" placeholder="自動填入">
+  <div class="card">
+    <label>日期時間</label>
+    <input type="text" id="time" readonly>
 
-  <label>本次分析記錄（可多隻股票）</label>
-  <textarea id="content" rows="10" placeholder="直接輸入或貼上：
+    <label>本次掃描記錄（可多隻股票）</label>
+    <textarea id="content" rows="8" placeholder="例如：
 TSLA 總分 17 → No (J過熱)
 MU 總分 16 → No (KDJ過熱)
 AMD 總分 15 → 觀望"></textarea>
 
-  <button onclick="saveRecord()">💾 儲存本次掃描</button>
-  <button onclick="exportJSON()" style="background:#00bfff;">📤 匯出全部為 JSON</button>
+    <button onclick="saveAndUpload()">💾 儲存並自動上傳 GitHub</button>
+  </div>
 
-  <h2>歷史掃描紀錄</h2>
-  <div id="history"></div>
+  <div class="card">
+    <h2>歷史紀錄</h2>
+    <div id="history"></div>
+  </div>
 
-  <h2>最新 JSON 內容（可複製）</h2>
-  <pre id="jsonPreview"></pre>
+  <div class="card">
+    <h2>最新 JSON 預覽</h2>
+    <pre id="jsonPreview"></pre>
+  </div>
 
   <script>
-    const STORAGE_KEY = 'sopRecords';
+    const OWNER = "TwistedFake06";
+    const REPO = "sop-records";
+    let PAT = "";
 
-    function getCurrentTime() {
-      return new Date().toLocaleString('zh-TW');
-    }
+    // 自動填時間
+    document.getElementById('time').value = new Date().toLocaleString('zh-TW');
 
-    function saveRecord() {
-      const time = document.getElementById('time').value || getCurrentTime();
+    async function saveAndUpload() {
       const content = document.getElementById('content').value.trim();
-
       if (!content) return alert("請輸入分析內容");
 
-      let records = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-      records.unshift({ time, content });
+      PAT = prompt("請輸入你的 GitHub Personal Access Token (只輸入一次):", PAT);
+      if (!PAT) return alert("需要 Token 才能上傳");
 
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
-      
-      alert('✅ 已儲存！');
-      document.getElementById('content').value = '';
-      loadHistory();
+      const record = {
+        time: new Date().toLocaleString('zh-TW'),
+        content: content
+      };
+
+      let records = [];
+      const url = `https://api.github.com/repos/${OWNER}/${REPO}/contents/sop_records.json`;
+
+      try {
+        const res = await fetch(url, { headers: { Authorization: `token ${PAT}` } });
+        if (res.ok) {
+          const data = await res.json();
+          records = JSON.parse(atob(data.content));
+        }
+      } catch(e) {}
+
+      records.unshift(record);
+
+      const newContent = btoa(unescape(encodeURIComponent(JSON.stringify(records, null, 2))));
+
+      const body = {
+        message: `Update SOP records - ${new Date().toLocaleString('zh-TW')}`,
+        content: newContent,
+        sha: (await fetch(url, { headers: { Authorization: `token ${PAT}` } }).then(r => r.json()).catch(() => ({}))).sha
+      };
+
+      const upload = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          Authorization: `token ${PAT}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      });
+
+      if (upload.ok) {
+        alert('✅ 已成功儲存並自動上傳到 GitHub！');
+        document.getElementById('content').value = '';
+        loadHistory();
+      } else {
+        alert('❌ 上傳失敗，請檢查 Token 是否正確');
+      }
     }
 
     function loadHistory() {
+      // 本地顯示歷史
       const div = document.getElementById('history');
-      const records = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      const records = JSON.parse(localStorage.getItem('localSOP') || '[]');
       let html = '';
       records.forEach(r => {
-        html += `<div class="record">
-          <strong>${r.time}</strong><br><br>
-          ${r.content.replace(/\n/g, '<br>')}
+        html += `<div class="history-item">
+          <div class="time">${r.time}</div>
+          <div>${r.content.replace(/\n/g, '<br>')}</div>
         </div>`;
       });
       div.innerHTML = html || '<p>還沒有紀錄</p>';
-      updateJSONPreview();
     }
 
-    function updateJSONPreview() {
-      const records = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-      document.getElementById('jsonPreview').textContent = JSON.stringify(records, null, 2);
-    }
-
-    function exportJSON() {
-      const records = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-      const dataStr = JSON.stringify(records, null, 2);
-      const blob = new Blob([dataStr], {type: 'application/json'});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `SOP-Records-${new Date().toISOString().slice(0,10)}.json`;
-      a.click();
-      alert('✅ JSON 已下載！');
-    }
-
-    // 自動填入時間
-    window.onload = () => {
-      document.getElementById('time').value = getCurrentTime();
-      loadHistory();
-    };
+    window.onload = loadHistory;
   </script>
 </body>
 </html>
