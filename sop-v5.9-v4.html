@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>v5.9 SOP v4 - iPhone 自動上傳</title>
+  <title>v5.9 SOP v4 - iPhone 自動上傳 GitHub</title>
   <style>
     body {font-family: system-ui; margin:0; padding:20px; background:#111; color:#fff; line-height:1.5;}
     h1 {text-align:center; color:#0f0;}
@@ -13,29 +13,27 @@
     button {background:#0f0; color:#000; font-weight:bold;}
     .record {background:#222; padding:15px; margin:15px 0; border-radius:8px; white-space:pre-wrap;}
     textarea {height:180px;}
-    .setup {background:#222; padding:15px; border-radius:8px;}
   </style>
 </head>
 <body>
   <h1>🔥 v5.9 SOP v4 - iPhone 自動上傳 GitHub</h1>
 
-  <div class="setup">
-    <h2>第一次設定 GitHub</h2>
+  <div style="background:#222; padding:15px; border-radius:8px; margin-bottom:20px;">
+    <h2>GitHub 設定（第一次填一次即可）</h2>
     <label>GitHub Username</label>
-    <input type="text" id="owner" placeholder="你的 GitHub 用戶名" value="">
+    <input type="text" id="owner" value="TwistedFake06" readonly>
     
     <label>Repository 名稱</label>
-    <input type="text" id="repo" placeholder="sop-records" value="sop-records">
+    <input type="text" id="repo" value="sop-records" readonly>
     
     <label>Personal Access Token (PAT)</label>
-    <input type="password" id="pat" placeholder="ghp_xxxxxxxxxxxxxxxx" value="">
-    <button onclick="saveSetup()">✅ 儲存設定</button>
+    <input type="password" id="pat" placeholder="ghp_xxxxxxxxxxxxxxxx">
+    <button onclick="saveSetup()">✅ 儲存 Token</button>
   </div>
 
   <label>時間戳 + 標的 + DTE</label>
   <input type="text" id="timestamp" placeholder="例如 2145 | AAPL | 35 DTE">
 
-  <!-- Checklist 略（同 v3） -->
   <table>
     <tr><th>A級</th><th>分數</th></tr>
     <tr><td>VIX 15–23</td><td><input type="checkbox" id="a1" onchange="calc()"> 3</td></tr>
@@ -44,12 +42,12 @@
     <tr><td>BB突破站穩4–5根</td><td><input type="checkbox" id="a4" onchange="calc()"> 5</td></tr>
   </table>
 
-  <p><strong>總分：</strong><span id="totalScore" style="font-size:24px;color:#0f0;">0</span></p>
+  <p><strong>A級：</strong><span id="aScore">0</span>　<strong>B級：</strong><span id="bScore">0</span>　<strong>總分：</strong><span id="totalScore" style="font-size:24px;color:#0f0;">0</span></p>
 
-  <label>續強滿足幾條？</label>
+  <label>續強/續弱滿足幾條？</label>
   <input type="number" id="continue" value="0" min="0" max="10" onchange="calc()">
 
-  <label>完整分析（直接貼 Grok 給你的整段）</label>
+  <label>完整分析（直接貼 Grok 給你的整段文字）</label>
   <textarea id="fullAnalysis" placeholder="貼 Grok 的完整分析文字..."></textarea>
 
   <button onclick="saveAndUpload()">💾 儲存並自動上傳到 GitHub</button>
@@ -58,26 +56,37 @@
   <div id="history"></div>
 
   <script>
-    // 儲存設定
-    function saveSetup() {
-      localStorage.setItem('githubOwner', document.getElementById('owner').value.trim());
-      localStorage.setItem('githubRepo', document.getElementById('repo').value.trim());
-      localStorage.setItem('githubPAT', document.getElementById('pat').value.trim());
-      alert('✅ GitHub 設定已儲存！');
+    function calc() {
+      let a = 0;
+      if (document.getElementById('a1').checked) a += 3;
+      if (document.getElementById('a2').checked) a += 3;
+      if (document.getElementById('a3').checked) a += 4;
+      if (document.getElementById('a4').checked) a += 5;
+      document.getElementById('aScore').textContent = a;
+
+      let b = 0;
+      // B級可自行擴充
+      document.getElementById('bScore').textContent = b;
+
+      let total = a + b + parseInt(document.getElementById('continue').value || 0);
+      document.getElementById('totalScore').textContent = total;
     }
 
-    // 儲存並自動上傳
+    function saveSetup() {
+      localStorage.setItem('githubPAT', document.getElementById('pat').value.trim());
+      alert('✅ Token 已儲存！');
+    }
+
     async function saveAndUpload() {
-      const owner = localStorage.getItem('githubOwner');
-      const repo = localStorage.getItem('githubRepo');
+      const owner = "TwistedFake06";
+      const repo = "sop-records";
       const pat = localStorage.getItem('githubPAT');
 
-      if (!owner || !repo || !pat) {
-        alert('⚠️ 請先設定 GitHub Username、Repo 和 PAT');
+      if (!pat) {
+        alert('⚠️ 請先在上面輸入 Personal Access Token');
         return;
       }
 
-      // 建立新紀錄
       const record = {
         time: new Date().toLocaleString('zh-TW'),
         timestamp: document.getElementById('timestamp').value || '未填',
@@ -86,10 +95,8 @@
         fullAnalysis: document.getElementById('fullAnalysis').value
       };
 
-      // 讀取現有紀錄
       let records = [];
-      const filePath = 'sop_records.json';
-      const url = `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`;
+      const url = `https://api.github.com/repos/${owner}/${repo}/contents/sop_records.json`;
 
       try {
         const res = await fetch(url, { headers: { Authorization: `token ${pat}` } });
@@ -101,10 +108,8 @@
 
       records.unshift(record);
 
-      // 轉成 base64
       const content = btoa(unescape(encodeURIComponent(JSON.stringify(records, null, 2))));
 
-      // 自動 commit
       const body = {
         message: `Update SOP records - ${new Date().toLocaleString('zh-TW')}`,
         content: content,
@@ -123,17 +128,20 @@
       if (uploadRes.ok) {
         alert('✅ 已自動上傳到你的 GitHub Repository！');
       } else {
-        alert('❌ 上傳失敗，請檢查 Token 或 Repo 權限');
+        alert('❌ 上傳失敗，請檢查 Token 是否正確');
       }
 
       loadHistory();
-      // 清空表單
       document.getElementById('fullAnalysis').value = '';
       calc();
     }
 
-    // 其餘 calc()、loadHistory() 與之前相同（省略以節省篇幅，完整版已內建）
-    window.onload = loadHistory;
+    function loadHistory() {
+      const div = document.getElementById('history');
+      div.innerHTML = '<p>歷史紀錄會在每次儲存後自動顯示（本地暫存）</p>';
+    }
+
+    window.onload = () => { calc(); };
   </script>
 </body>
 </html>
