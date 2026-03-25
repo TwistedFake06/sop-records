@@ -3,145 +3,99 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>v5.9 SOP v4 - iPhone 自動上傳 GitHub</title>
+  <title>SOP 股票記錄</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="SOP 記錄">
+  <link rel="apple-touch-icon" href="https://via.placeholder.com/180x180/0f0/000?text=SOP"> <!-- 可換你自己 icon -->
+
   <style>
-    body {font-family: system-ui; margin:0; padding:20px; background:#111; color:#fff; line-height:1.5;}
-    h1 {text-align:center; color:#0f0;}
-    table {width:100%; border-collapse:collapse; margin:15px 0;}
-    td, th {padding:10px; border:1px solid #333;}
-    input, select, textarea, button {width:100%; padding:12px; margin:8px 0; font-size:16px; border-radius:6px;}
-    button {background:#0f0; color:#000; font-weight:bold;}
-    .record {background:#222; padding:15px; margin:15px 0; border-radius:8px; white-space:pre-wrap;}
-    textarea {height:180px;}
+    body {font-family: system-ui; margin:0; padding:20px; background:#111; color:#fff; -webkit-tap-highlight-color: transparent;}
+    h1 {text-align:center; color:#0f0; margin:10px 0 20px;}
+    input, textarea, button {width:100%; padding:15px; margin:10px 0; font-size:17px; border-radius:12px; box-sizing:border-box;}
+    button {background:#0f0; color:#000; font-weight:bold; border:none;}
+    .record {background:#222; padding:15px; margin:15px 0; border-radius:12px; word-break:break-all;}
+    .clear-btn {background:#f33; margin-top:20px;}
   </style>
 </head>
 <body>
-  <h1>🔥 v5.9 SOP v4 - iPhone 自動上傳 GitHub</h1>
+  <h1>🔥 SOP 股票快速記錄</h1>
+  
+  <label>日期時間</label>
+  <input type="text" id="time" placeholder="自動填入">
 
-  <div style="background:#222; padding:15px; border-radius:8px; margin-bottom:20px;">
-    <h2>GitHub 設定（第一次填一次即可）</h2>
-    <label>GitHub Username</label>
-    <input type="text" id="owner" value="TwistedFake06" readonly>
-    
-    <label>Repository 名稱</label>
-    <input type="text" id="repo" value="sop-records" readonly>
-    
-    <label>Personal Access Token (PAT)</label>
-    <input type="password" id="pat" placeholder="ghp_xxxxxxxxxxxxxxxx">
-    <button onclick="saveSetup()">✅ 儲存 Token</button>
-  </div>
+  <label>本次掃描記錄（可貼多隻股票）</label>
+  <textarea id="content" rows="10" placeholder="例如：
+TSLA 總分 17 → No (J過熱)
+MU 總分 16 → No (KDJ過熱)
+NVDA 總分 12 → 觀望"></textarea>
 
-  <label>時間戳 + 標的 + DTE</label>
-  <input type="text" id="timestamp" placeholder="例如 2145 | AAPL | 35 DTE">
+  <button onclick="save()">💾 儲存本次掃描</button>
+  <button onclick="clearAll()" class="clear-btn">🗑️ 清除所有紀錄（小心）</button>
 
-  <table>
-    <tr><th>A級</th><th>分數</th></tr>
-    <tr><td>VIX 15–23</td><td><input type="checkbox" id="a1" onchange="calc()"> 3</td></tr>
-    <tr><td>價格 > VWAP +0.5%</td><td><input type="checkbox" id="a2" onchange="calc()"> 3</td></tr>
-    <tr><td>第3根K後 + 站穩</td><td><input type="checkbox" id="a3" onchange="calc()"> 4</td></tr>
-    <tr><td>BB突破站穩4–5根</td><td><input type="checkbox" id="a4" onchange="calc()"> 5</td></tr>
-  </table>
-
-  <p><strong>A級：</strong><span id="aScore">0</span>　<strong>B級：</strong><span id="bScore">0</span>　<strong>總分：</strong><span id="totalScore" style="font-size:24px;color:#0f0;">0</span></p>
-
-  <label>續強/續弱滿足幾條？</label>
-  <input type="number" id="continue" value="0" min="0" max="10" onchange="calc()">
-
-  <label>完整分析（直接貼 Grok 給你的整段文字）</label>
-  <textarea id="fullAnalysis" placeholder="貼 Grok 的完整分析文字..."></textarea>
-
-  <button onclick="saveAndUpload()">💾 儲存並自動上傳到 GitHub</button>
-
-  <h2>歷史紀錄</h2>
+  <h2>歷史紀錄（共 <span id="count">0</span> 筆）</h2>
   <div id="history"></div>
 
   <script>
-    function calc() {
-      let a = 0;
-      if (document.getElementById('a1').checked) a += 3;
-      if (document.getElementById('a2').checked) a += 3;
-      if (document.getElementById('a3').checked) a += 4;
-      if (document.getElementById('a4').checked) a += 5;
-      document.getElementById('aScore').textContent = a;
-
-      let b = 0;
-      // B級可自行擴充
-      document.getElementById('bScore').textContent = b;
-
-      let total = a + b + parseInt(document.getElementById('continue').value || 0);
-      document.getElementById('totalScore').textContent = total;
+    // 自動填日期
+    function setTime() {
+      const now = new Date();
+      document.getElementById('time').value = now.toLocaleString('zh-TW', {year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'});
     }
 
-    function saveSetup() {
-      localStorage.setItem('githubPAT', document.getElementById('pat').value.trim());
-      alert('✅ Token 已儲存！');
-    }
-
-    async function saveAndUpload() {
-      const owner = "TwistedFake06";
-      const repo = "sop-records";
-      const pat = localStorage.getItem('githubPAT');
-
-      if (!pat) {
-        alert('⚠️ 請先在上面輸入 Personal Access Token');
-        return;
-      }
-
-      const record = {
-        time: new Date().toLocaleString('zh-TW'),
-        timestamp: document.getElementById('timestamp').value || '未填',
-        aScore: document.getElementById('aScore').textContent,
-        total: document.getElementById('totalScore').textContent,
-        fullAnalysis: document.getElementById('fullAnalysis').value
-      };
-
-      let records = [];
-      const url = `https://api.github.com/repos/${owner}/${repo}/contents/sop_records.json`;
-
-      try {
-        const res = await fetch(url, { headers: { Authorization: `token ${pat}` } });
-        if (res.ok) {
-          const data = await res.json();
-          records = JSON.parse(atob(data.content));
-        }
-      } catch(e) {}
-
-      records.unshift(record);
-
-      const content = btoa(unescape(encodeURIComponent(JSON.stringify(records, null, 2))));
-
-      const body = {
-        message: `Update SOP records - ${new Date().toLocaleString('zh-TW')}`,
-        content: content,
-        sha: (await fetch(url, { headers: { Authorization: `token ${pat}` } }).then(r => r.json()).catch(() => ({}))).sha || undefined
-      };
-
-      const uploadRes = await fetch(url, {
-        method: 'PUT',
-        headers: {
-          Authorization: `token ${pat}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(body)
-      });
-
-      if (uploadRes.ok) {
-        alert('✅ 已自動上傳到你的 GitHub Repository！');
-      } else {
-        alert('❌ 上傳失敗，請檢查 Token 是否正確');
-      }
-
+    function save() {
+      const time = document.getElementById('time').value || new Date().toLocaleString('zh-TW');
+      const content = document.getElementById('content').value.trim();
+      if (!content) return alert("請輸入內容先！");
+      
+      const entry = { time, content };
+      let records = JSON.parse(localStorage.getItem('sopRecords') || '[]');
+      records.unshift(entry); // 新紀錄放最上
+      localStorage.setItem('sopRecords', JSON.stringify(records));
+      
+      alert('✅ 已儲存！');
+      document.getElementById('content').value = '';
       loadHistory();
-      document.getElementById('fullAnalysis').value = '';
-      calc();
     }
 
     function loadHistory() {
       const div = document.getElementById('history');
-      div.innerHTML = '<p>歷史紀錄會在每次儲存後自動顯示（本地暫存）</p>';
+      const records = JSON.parse(localStorage.getItem('sopRecords') || '[]');
+      document.getElementById('count').textContent = records.length;
+      
+      let html = '';
+      records.forEach((r, index) => {
+        html += `<div class="record">
+          <strong>${r.time}</strong> 
+          <button onclick="deleteOne(${index})" style="float:right; background:#f33; color:#fff; border:none; padding:5px 10px; border-radius:8px; font-size:14px;">刪除</button>
+          <br><br>
+          ${r.content.replace(/\n/g, '<br>')}
+        </div>`;
+      });
+      div.innerHTML = html || '<p style="color:#888; text-align:center;">仲未有紀錄，儲存第一筆啦！</p>';
     }
 
-    window.onload = () => { calc(); };
+    function deleteOne(index) {
+      if (!confirm('確定刪除呢筆紀錄？')) return;
+      let records = JSON.parse(localStorage.getItem('sopRecords') || '[]');
+      records.splice(index, 1);
+      localStorage.setItem('sopRecords', JSON.stringify(records));
+      loadHistory();
+    }
+
+    function clearAll() {
+      if (confirm('⚠️ 確定清除所有紀錄？呢個動作不能還原！')) {
+        localStorage.removeItem('sopRecords');
+        loadHistory();
+        alert('所有紀錄已清除');
+      }
+    }
+
+    // 頁面載入時自動執行
+    window.onload = () => {
+      setTime();
+      loadHistory();
+    };
   </script>
 </body>
 </html>
