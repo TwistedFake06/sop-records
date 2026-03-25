@@ -3,27 +3,28 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SOP Tracker v19</title>
+  <title>SOP Tracker v20</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet">
   <style>
     .stock-group { margin-bottom: 40px; }
     .stock-card {
-      border-left: 6px solid;
-      padding: 16px;
-      margin-bottom: 12px;
+      border-left: 5px solid;
+      padding: 14px 16px;
+      margin-bottom: 10px;
     }
     .high { border-color: #00ff9d; }
     .medium { border-color: #ffaa00; }
     .low { border-color: #888; }
+    .time { font-size: 13px; color: #888; }
   </style>
 </head>
 <body class="bg-base-900 text-base-content min-h-screen p-4">
   <div class="max-w-2xl mx-auto">
 
-    <h1 class="text-4xl font-bold text-center text-primary mb-6">SOP Tracker v19</h1>
+    <h1 class="text-3xl font-bold text-center text-primary mb-6">SOP Tracker v20</h1>
 
-    <!-- 統計面板 -->
+    <!-- 統計 -->
     <div class="stats shadow mb-8">
       <div class="stat">
         <div class="stat-title">總掃描</div>
@@ -45,7 +46,7 @@
         <label class="label">
           <span class="label-text text-lg">貼入 Grok 的分析文字</span>
         </label>
-        <textarea id="inputText" class="textarea textarea-bordered h-48 w-full bg-base-900" 
+        <textarea id="inputText" class="textarea textarea-bordered h-40 w-full bg-base-900" 
                   placeholder="直接貼 Grok 給你的整段文字..."></textarea>
         
         <div class="flex gap-3 mt-4">
@@ -101,7 +102,8 @@
 
             stockGroups[stock].push(`
               <div class="stock-card bg-base-800 shadow-xl ${colorClass}">
-                <div class="flex justify-between items-start">
+                <div class="time">${time}</div>
+                <div class="flex justify-between items-start mt-2">
                   <div>
                     <div class="text-xl font-bold">${stock}</div>
                     <div class="text-sm opacity-70">${change}</div>
@@ -134,7 +136,6 @@
 
       document.getElementById('result').innerHTML += html || '<p class="opacity-60">未能解析到個股</p>';
 
-      // 更新統計
       updateStats();
       alert('✅ 已新增個股卡片（按股票分組）！');
       document.getElementById('inputText').value = '';
