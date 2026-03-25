@@ -1,116 +1,69 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-TW" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SOP Tracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet">
   <style>
-    :root {
-      --primary: #ff2d95;
-      --accent: #00f5ff;
-      --bg: #0f0f1a;
-      --card: #1a1a2e;
-    }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: linear-gradient(135deg, #0f0f1a, #1a1a2e);
-      color: #eee;
-      margin: 0;
-      padding: 20px;
-      min-height: 100vh;
-    }
-    h1 {
-      text-align: center;
-      color: var(--primary);
-      font-size: 28px;
-      margin-bottom: 30px;
-      text-shadow: 0 0 20px rgba(255,45,149,0.3);
-    }
-    .stats {
-      display: flex;
-      justify-content: space-around;
-      background: var(--card);
-      padding: 20px;
-      border-radius: 20px;
-      margin-bottom: 25px;
-      box-shadow: 0 8px 30px rgba(0,0,0,0.4);
-    }
-    .stat-item { text-align: center; }
-    .stat-number { font-size: 28px; font-weight: bold; color: var(--accent); }
-    .stat-label { font-size: 13px; color: #aaa; }
-
-    .stock-card {
-      background: var(--card);
-      border-radius: 20px;
-      padding: 20px;
-      margin: 15px 0;
-      box-shadow: 0 8px 30px rgba(0,0,0,0.4);
-      border-left: 6px solid;
-    }
-    .high { border-color: #00ff9d; }
-    .medium { border-color: #ffaa00; }
-    .low { border-color: #888; }
-
-    .stock-name { font-size: 24px; font-weight: bold; margin-bottom: 8px; }
-    button {
-      width: 100%;
-      padding: 18px;
-      margin: 12px 0;
-      background: var(--primary);
-      color: white;
-      border: none;
-      border-radius: 16px;
-      font-size: 17px;
-      font-weight: bold;
-    }
-    textarea {
-      width: 100%;
-      padding: 16px;
-      background: #16213e;
-      border: none;
-      border-radius: 16px;
-      color: #eee;
-      font-size: 16px;
-      min-height: 180px;
-    }
+    body { font-family: system-ui; }
   </style>
 </head>
-<body>
-  <h1>SOP Tracker</h1>
+<body class="bg-base-900 text-base-content min-h-screen">
+  <div class="max-w-2xl mx-auto p-4">
 
-  <div class="stats">
-    <div class="stat-item">
-      <div class="stat-number" id="totalScans">0</div>
-      <div class="stat-label">總掃描</div>
+    <div class="text-center mb-8">
+      <h1 class="text-4xl font-bold text-primary">SOP Tracker</h1>
+      <p class="text-base-content/60">v5.9 個股智能記錄</p>
     </div>
-    <div class="stat-item">
-      <div class="stat-number" id="greenRate">0%</div>
-      <div class="stat-label">綠燈比例</div>
+
+    <!-- 統計面板 -->
+    <div class="stats shadow mb-8">
+      <div class="stat">
+        <div class="stat-title">總掃描</div>
+        <div class="stat-value text-primary" id="totalScans">0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-title">綠燈比例</div>
+        <div class="stat-value text-success" id="greenRate">0%</div>
+      </div>
+      <div class="stat">
+        <div class="stat-title">平均總分</div>
+        <div class="stat-value" id="avgScore">0</div>
+      </div>
     </div>
-    <div class="stat-item">
-      <div class="stat-number" id="avgScore">0</div>
-      <div class="stat-label">平均總分</div>
+
+    <!-- 輸入區 -->
+    <div class="card bg-base-800 shadow-xl mb-8">
+      <div class="card-body">
+        <label class="label">
+          <span class="label-text text-lg">貼入 Grok 的分析文字</span>
+        </label>
+        <textarea id="inputText" class="textarea textarea-bordered h-48 w-full bg-base-900" 
+                  placeholder="直接貼 Grok 給你的整段文字..."></textarea>
+        
+        <div class="flex gap-3 mt-4">
+          <button onclick="parseAndSplit()" class="btn btn-primary flex-1">🤖 分拆成個股卡片</button>
+          <button onclick="clearInput()" class="btn btn-ghost">清空</button>
+        </div>
+      </div>
     </div>
+
+    <!-- 結果區 -->
+    <div id="result"></div>
+
+    <button onclick="exportJSON()" class="btn btn-outline w-full mt-6">📤 匯出全部 JSON</button>
   </div>
-
-  <div class="card">
-    <label>貼入 Grok 的分析文字</label>
-    <textarea id="inputText" placeholder="直接貼 Grok 給你的整段文字..."></textarea>
-  </div>
-
-  <button onclick="parseAndSplit()">🤖 分拆成個股卡片</button>
-  <button onclick="exportJSON()">📤 匯出全部 JSON</button>
-
-  <div id="result"></div>
 
   <script>
     function getColorClass(potential) {
-      if (potential.includes('高') || potential.includes('★★★')) return 'high';
-      if (potential.includes('中')) return 'medium';
-      return 'low';
+      if (potential.includes('高') || potential.includes('★★★')) return 'border-l-4 border-success';
+      if (potential.includes('中')) return 'border-l-4 border-warning';
+      return 'border-l-4 border-base-500';
     }
 
-    function isGreen(score) {
+    function isGreenLight(score) {
       return parseInt(score) >= 15;
     }
 
@@ -137,37 +90,65 @@
             const totalScore = parts[4] || '0';
             const issue = parts.slice(5).join(' ');
 
-            const potential = issue.includes('高') ? '★★★ 高' : issue.includes('中') ? '★★ 中' : '★ 低';
-            const colorClass = getColorClass(potential);
-            const green = isGreen(totalScore) ? '✅ 綠燈' : '⚪️ 非綠燈';
+            const potential = issue.includes('高') ? '★★★ 高' : 
+                             (issue.includes('中') ? '★★ 中高' : '★ 低');
 
-            if (isGreen(totalScore)) greenCount++;
+            const colorClass = getColorClass(potential);
+            const isGreen = isGreenLight(totalScore);
+
+            if (isGreen) greenCount++;
             totalScoreSum += parseInt(totalScore) || 0;
             count++;
 
             cardsHTML += `
-              <div class="stock-card ${colorClass}">
-                <div class="stock-name">${rank}. ${stock}</div>
-                <div class="info">漲幅: <strong>${change}</strong></div>
-                <div class="info">A級: ${aScore} | 總分: <strong>${totalScore}</strong></div>
-                <div class="info">問題: ${issue}</div>
-                <div class="info">潛力: <strong>${potential}</strong></div>
-                <div style="margin-top:8px;">${green}</div>
+              <div class="card bg-base-800 shadow-xl ${colorClass} mb-6">
+                <div class="card-body">
+                  <div class="flex justify-between items-start">
+                    <div>
+                      <div class="text-2xl font-bold">${stock}</div>
+                      <div class="text-sm opacity-70">${rank} • 夜盤 ${change}</div>
+                    </div>
+                    <div class="text-right">
+                      <div class="text-3xl font-bold text-primary">${totalScore}</div>
+                      <div class="text-xs opacity-60">總分</div>
+                    </div>
+                  </div>
+                  <div class="mt-4 text-sm">
+                    <span class="opacity-70">A級：</span>${aScore}　|　
+                    <span class="opacity-70">問題：</span>${issue}
+                  </div>
+                  <div class="mt-3">
+                    <span class="badge ${isGreen ? 'badge-success' : 'badge-neutral'}">${potential}</span>
+                    ${isGreen ? '<span class="ml-2 text-success text-sm">✅ 綠燈</span>' : ''}
+                  </div>
+                </div>
               </div>`;
           }
         }
       });
 
-      document.getElementById('result').innerHTML = cardsHTML || '<p>未能解析到個股，請檢查格式</p>';
+      document.getElementById('result').innerHTML = cardsHTML || '<div class="alert alert-warning">未能解析到個股資料</div>';
 
       // 更新統計
-      document.getElementById('totalScans').textContent = count || '—';
-      document.getElementById('greenRate').textContent = count ? Math.round((greenCount / count) * 100) + '%' : '0%';
-      document.getElementById('avgScore').textContent = count ? (totalScoreSum / count).toFixed(1) : '0';
+      const avg = count ? (totalScoreSum / count).toFixed(1) : 0;
+      const greenRate = count ? Math.round((greenCount / count) * 100) : 0;
+
+      document.getElementById('totalScans').textContent = count;
+      document.getElementById('greenRate').textContent = greenRate + '%';
+      document.getElementById('avgScore').textContent = avg;
+
+      // 儲存
+      let records = JSON.parse(localStorage.getItem('sopV13') || '[]');
+      records.unshift({ time, html: cardsHTML });
+      localStorage.setItem('sopV13', JSON.stringify(records));
+    }
+
+    function clearInput() {
+      document.getElementById('inputText').value = '';
     }
 
     function exportJSON() {
-      const records = JSON.parse(localStorage.getItem('sopV12') || '[]');
+      const records = JSON.parse(localStorage.getItem('sopV13') || '[]');
       const blob = new Blob([JSON.stringify(records, null, 2)], {type: 'application/json'});
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
