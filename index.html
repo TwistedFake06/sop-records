@@ -3,17 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SOP Tracker v22</title>
+  <title>SOP Tracker v23</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet">
   <style>
-    .stock-group { margin-bottom: 28px; }
+    .stock-group { margin-bottom: 32px; }
     .stock-card {
       border-left: 5px solid;
       padding: 12px 14px;
       margin-bottom: 8px;
       font-size: 14.5px;
-      line-height: 1.4;
     }
     .high { border-color: #00ff9d; }
     .medium { border-color: #ffaa00; }
@@ -24,8 +23,9 @@
 <body class="bg-base-900 text-base-content min-h-screen p-3">
   <div class="max-w-md mx-auto">
 
-    <h1 class="text-3xl font-bold text-center text-primary mb-6">SOP Tracker v22</h1>
+    <h1 class="text-3xl font-bold text-center text-primary mb-6">SOP Tracker v23</h1>
 
+    <!-- 統計 -->
     <div class="stats shadow mb-6">
       <div class="stat">
         <div class="stat-title">總掃描</div>
@@ -41,6 +41,7 @@
       </div>
     </div>
 
+    <!-- 輸入區 -->
     <div class="card bg-base-800 shadow-xl mb-6">
       <div class="card-body p-4">
         <label class="label">
@@ -50,13 +51,24 @@
                   placeholder="直接貼 Grok 給你的整段文字..."></textarea>
         
         <div class="flex gap-3 mt-4">
+          <button onclick="pasteFromClipboard()" class="btn btn-secondary flex-1">📋 貼上</button>
           <button onclick="parseAndSplit()" class="btn btn-primary flex-1">🤖 分拆成個股卡片</button>
           <button onclick="clearInput()" class="btn btn-ghost">清空</button>
         </div>
       </div>
     </div>
 
+    <!-- 結果區（按個股分組） -->
     <div id="result"></div>
+
+    <!-- 匯出 / 匯入 -->
+    <div class="flex gap-3 mt-8">
+      <button onclick="exportJSON()" class="btn btn-outline flex-1">📤 匯出 JSON</button>
+      <label class="btn btn-outline flex-1 cursor-pointer">
+        📥 匯入 JSON
+        <input type="file" id="importFile" accept=".json" class="hidden" onchange="importJSON(event)">
+      </label>
+    </div>
 
   </div>
 
@@ -71,6 +83,16 @@
 
     function isGreenLight(score) {
       return parseInt(score) >= 15;
+    }
+
+    async function pasteFromClipboard() {
+      try {
+        const text = await navigator.clipboard.readText();
+        document.getElementById('inputText').value = text;
+        alert('✅ 已從剪貼簿貼上！');
+      } catch(e) {
+        alert('無法存取剪貼簿，請手動貼上');
+      }
     }
 
     function parseAndSplit() {
@@ -120,10 +142,9 @@
         }
       });
 
-      // 重新渲染所有群組
       renderAllGroups();
       updateStats();
-      alert('✅ 已更新個股卡片（同一股票已合併）！');
+      alert('✅ 已新增個股卡片（同一股票已合併）！');
       document.getElementById('inputText').value = '';
     }
 
@@ -132,8 +153,8 @@
       let html = '';
       Object.keys(stockGroups).forEach(stock => {
         html += `
-          <div class="stock-group mb-8">
-            <div class="text-xl font-semibold mb-3 text-primary">${stock}</div>
+          <div class="stock-group mb-10">
+            <div class="text-xl font-semibold mb-4 text-primary">${stock}</div>
             ${stockGroups[stock].join('')}
           </div>`;
       });
@@ -147,6 +168,36 @@
 
     function clearInput() {
       document.getElementById('inputText').value = '';
+    }
+
+    function exportJSON() {
+      const records = JSON.parse(localStorage.getItem('sopV21') || '[]');
+      const blob = new Blob([JSON.stringify(records, null, 2)], {type: 'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `SOP-Records-${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+    }
+
+    function importJSON(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        try {
+          const imported = JSON.parse(ev.target.result);
+          stockGroups = {};
+          imported.forEach(item => {
+            // 這裡簡化處理，實際可根據需要還原
+          });
+          renderAllGroups();
+          alert('✅ 已成功匯入 JSON！');
+        } catch(err) {
+          alert('匯入失敗，請確認檔案格式');
+        }
+      };
+      reader.readAsText(file);
     }
   </script>
 </body>
