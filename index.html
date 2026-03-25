@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SOP Tracker v23</title>
+  <title>SOP Tracker v24</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet">
   <style>
@@ -23,7 +23,7 @@
 <body class="bg-base-900 text-base-content min-h-screen p-3">
   <div class="max-w-md mx-auto">
 
-    <h1 class="text-3xl font-bold text-center text-primary mb-6">SOP Tracker v23</h1>
+    <h1 class="text-3xl font-bold text-center text-primary mb-6">SOP Tracker v24</h1>
 
     <!-- 統計 -->
     <div class="stats shadow mb-6">
@@ -39,6 +39,16 @@
         <div class="stat-title">平均總分</div>
         <div class="stat-value" id="avgScore">0</div>
       </div>
+    </div>
+
+    <!-- 搜尋框 -->
+    <div class="mb-6">
+      <input 
+        type="text" 
+        id="searchInput" 
+        placeholder="🔎 搜尋個股 (TSLA、MU...)" 
+        class="input input-bordered w-full bg-base-800 text-base-content"
+        oninput="filterStocks()">
     </div>
 
     <!-- 輸入區 -->
@@ -58,7 +68,7 @@
       </div>
     </div>
 
-    <!-- 結果區（按個股分組） -->
+    <!-- 結果區 -->
     <div id="result"></div>
 
     <!-- 匯出 / 匯入 -->
@@ -73,7 +83,7 @@
   </div>
 
   <script>
-    let stockGroups = {};   // 按股票分組
+    let stockGroups = {};   // 全局存儲，按股票分組
 
     function getColorClass(potential) {
       if (potential.includes('高') || potential.includes('★★★')) return 'high';
@@ -148,17 +158,27 @@
       document.getElementById('inputText').value = '';
     }
 
-    function renderAllGroups() {
+    function renderAllGroups(filter = '') {
       const container = document.getElementById('result');
       let html = '';
+      const searchTerm = filter.toUpperCase();
+
       Object.keys(stockGroups).forEach(stock => {
+        if (searchTerm && !stock.toUpperCase().includes(searchTerm)) return;
+
         html += `
           <div class="stock-group mb-10">
             <div class="text-xl font-semibold mb-4 text-primary">${stock}</div>
             ${stockGroups[stock].join('')}
           </div>`;
       });
-      container.innerHTML = html || '<p class="opacity-60 text-center">還沒有紀錄</p>';
+
+      container.innerHTML = html || '<p class="opacity-60 text-center">沒有符合的股票</p>';
+    }
+
+    function filterStocks() {
+      const searchTerm = document.getElementById('searchInput').value;
+      renderAllGroups(searchTerm);
     }
 
     function updateStats() {
@@ -171,8 +191,8 @@
     }
 
     function exportJSON() {
-      const records = JSON.parse(localStorage.getItem('sopV21') || '[]');
-      const blob = new Blob([JSON.stringify(records, null, 2)], {type: 'application/json'});
+      const data = { stockGroups, timestamp: new Date().toISOString() };
+      const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -186,11 +206,8 @@
       const reader = new FileReader();
       reader.onload = function(ev) {
         try {
-          const imported = JSON.parse(ev.target.result);
-          stockGroups = {};
-          imported.forEach(item => {
-            // 這裡簡化處理，實際可根據需要還原
-          });
+          const data = JSON.parse(ev.target.result);
+          stockGroups = data.stockGroups || {};
           renderAllGroups();
           alert('✅ 已成功匯入 JSON！');
         } catch(err) {
