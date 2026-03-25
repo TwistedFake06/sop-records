@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SOP 表格卡片 v8</title>
+  <title>SOP 表格卡片 v8.1</title>
   <style>
     body {font-family: system-ui; margin:0; padding:20px; background:#111; color:#eee;}
     h1 {text-align:center; color:#0f0;}
@@ -12,19 +12,22 @@
       border-radius:16px;
       padding:20px;
       margin:15px 0;
-      box-shadow: 0 4px 20px rgba(0,255,157,0.15);
+      box-shadow: 0 4px 20px rgba(0,255,157,0.1);
     }
     table {
       width:100%;
       border-collapse:collapse;
       margin:15px 0;
+      background:#222;
+      border-radius:12px;
+      overflow:hidden;
     }
     th, td {
-      padding:12px;
-      border:1px solid #333;
+      padding:12px 10px;
       text-align:left;
+      border-bottom:1px solid #333;
     }
-    th {background:#2a2a2a;}
+    th {background:#2a2a2a; color:#0f0;}
     button {
       width:100%;
       padding:16px;
@@ -33,51 +36,53 @@
       border:none;
       border-radius:12px;
       font-weight:bold;
-      margin:10px 0;
+      margin:15px 0;
     }
   </style>
 </head>
 <body>
-  <h1>🔥 SOP 表格卡片 v8</h1>
+  <h1>🔥 SOP 表格卡片 v8.1</h1>
 
   <div class="card">
-    <label>貼入 Grok 的分析文字（含表格）</label>
-    <textarea id="inputText" rows="10" placeholder="直接貼 Grok 給你的整段文字..."></textarea>
-    <button onclick="parseAndShow()">🤖 提取表格並顯示卡片</button>
+    <label>貼入 Grok 的完整分析文字</label>
+    <textarea id="inputText" rows="12" placeholder="直接貼 Grok 給你的整段文字..."></textarea>
+    <button onclick="extractAndShow()">🤖 提取表格並顯示卡片</button>
   </div>
 
   <div id="result"></div>
 
   <script>
-    function parseAndShow() {
+    function extractAndShow() {
       let text = document.getElementById('inputText').value.trim();
       if (!text) return alert("請貼入文字");
 
-      // 提取表格部分（找有 | 的行）
-      const lines = text.split('\n');
-      let tableHTML = '<table><tr>';
+      const time = new Date().toLocaleString('zh-TW');
 
-      let inTable = false;
+      // 強化提取表格（支援你這種格式）
+      const lines = text.split('\n');
+      let tableHTML = `<table><tr><th>排名</th><th>股票</th><th>夜盤漲幅</th><th>A級分數</th><th>總分估計</th><th>主要問題</th><th>明天潛力</th><th>建議</th></tr>`;
+
       lines.forEach(line => {
         line = line.trim();
-        if (line.includes('|')) {
-          inTable = true;
-          const cells = line.split('|').map(c => c.trim()).filter(c => c);
-          if (cells.length > 1) {
-            tableHTML += '<tr>';
-            cells.forEach(cell => {
-              tableHTML += `<td>${cell}</td>`;
-            });
-            tableHTML += '</tr>';
+        if (line.match(/^\d+\s+[A-Z]+/)) {
+          // 匹配如 "1 TSLA +1.84% 11–13 15–19 ..."
+          const parts = line.split(/\s+/);
+          if (parts.length >= 5) {
+            tableHTML += `<tr>
+              <td>${parts[0]}</td>
+              <td>${parts[1]}</td>
+              <td>${parts[2]}</td>
+              <td>${parts[3]}</td>
+              <td>${parts[4]}</td>
+              <td>${parts.slice(5).join(' ')}</td>
+              <td></td>
+              <td></td>
+            </tr>`;
           }
-        } else if (inTable && line === '') {
-          inTable = false;
         }
       });
 
-      tableHTML += '</table>';
-
-      const time = new Date().toLocaleString('zh-TW');
+      tableHTML += `</table>`;
 
       document.getElementById('result').innerHTML = `
         <div class="card">
@@ -86,7 +91,7 @@
         </div>
       `;
 
-      // 同時儲存到歷史
+      // 儲存到歷史
       let records = JSON.parse(localStorage.getItem('sopTableV8') || '[]');
       records.unshift({ time, tableHTML });
       localStorage.setItem('sopTableV8', JSON.stringify(records));
