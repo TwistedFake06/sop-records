@@ -3,22 +3,25 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SOP Tracker v18</title>
+  <title>SOP Tracker v19</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
-    .stock-card { border-left: 6px solid; }
+    .stock-group { margin-bottom: 40px; }
+    .stock-card {
+      border-left: 6px solid;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
     .high { border-color: #00ff9d; }
     .medium { border-color: #ffaa00; }
     .low { border-color: #888; }
-    canvas { max-height: 180px; }
   </style>
 </head>
 <body class="bg-base-900 text-base-content min-h-screen p-4">
   <div class="max-w-2xl mx-auto">
 
-    <h1 class="text-4xl font-bold text-center text-primary mb-6">SOP Tracker v18</h1>
+    <h1 class="text-4xl font-bold text-center text-primary mb-6">SOP Tracker v19</h1>
 
     <!-- 統計面板 -->
     <div class="stats shadow mb-8">
@@ -46,13 +49,13 @@
                   placeholder="直接貼 Grok 給你的整段文字..."></textarea>
         
         <div class="flex gap-3 mt-4">
-          <button onclick="parseAndSplit()" class="btn btn-primary flex-1">🤖 分拆成個股卡片 + 走勢圖</button>
+          <button onclick="parseAndSplit()" class="btn btn-primary flex-1">🤖 分拆成個股卡片</button>
           <button onclick="clearInput()" class="btn btn-ghost">清空</button>
         </div>
       </div>
     </div>
 
-    <!-- 結果區 -->
+    <!-- 結果區（按個股分組） -->
     <div id="result"></div>
 
     <button onclick="exportJSON()" class="btn btn-outline w-full mt-8">📤 匯出全部 JSON</button>
@@ -97,7 +100,7 @@
             if (!stockGroups[stock]) stockGroups[stock] = [];
 
             stockGroups[stock].push(`
-              <div class="stock-card bg-base-800 shadow-xl ${colorClass} mb-4">
+              <div class="stock-card bg-base-800 shadow-xl ${colorClass}">
                 <div class="flex justify-between items-start">
                   <div>
                     <div class="text-xl font-bold">${stock}</div>
@@ -114,55 +117,26 @@
                 <div class="mt-3">
                   <span class="badge ${isGreen ? 'badge-success' : 'badge-neutral'}">${potential}</span>
                 </div>
-                <!-- 走勢圖 -->
-                <canvas id="chart-${stock}" class="mt-4"></canvas>
               </div>`);
           }
         }
       });
 
+      // 按個股分組顯示
       let html = '';
       Object.keys(stockGroups).forEach(stock => {
         html += `
-          <div class="mb-10">
-            <div class="text-lg font-semibold mb-4 text-primary">${stock}</div>
+          <div class="stock-group mb-10">
+            <div class="text-xl font-semibold mb-4 text-primary">${stock}</div>
             ${stockGroups[stock].join('')}
           </div>`;
       });
 
       document.getElementById('result').innerHTML += html || '<p class="opacity-60">未能解析到個股</p>';
 
-      // 繪製走勢圖（模擬數據）
-      setTimeout(() => {
-        Object.keys(stockGroups).forEach(stock => {
-          const ctx = document.getElementById(`chart-${stock}`);
-          if (ctx) {
-            new Chart(ctx, {
-              type: 'line',
-              data: {
-                labels: ['09:30', '10:00', '10:30', '11:00', '11:30', '12:00'],
-                datasets: [{
-                  label: stock + ' 走勢',
-                  data: [148, 152, 155, 153, 157, 149],
-                  borderColor: '#00ff9d',
-                  tension: 0.4,
-                  borderWidth: 2,
-                  pointRadius: 0
-                }]
-              },
-              options: {
-                responsive: true,
-                plugins: { legend: { display: false } },
-                scales: { y: { display: false }, x: { grid: { color: '#333' } } }
-              }
-            });
-          }
-        });
-      }, 300);
-
       // 更新統計
       updateStats();
-      alert('✅ 已新增個股卡片 + 走勢圖！');
+      alert('✅ 已新增個股卡片（按股票分組）！');
       document.getElementById('inputText').value = '';
     }
 
