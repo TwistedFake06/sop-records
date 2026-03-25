@@ -3,68 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SOP 美觀卡片版 v7</title>
+  <title>SOP 智能卡片 v7</title>
   <style>
-    :root {
-      --primary: #00ff9d;
-      --bg: #0a0a0a;
-      --card: #1f1f1f;
-    }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-      background: var(--bg);
-      color: #eee;
-      margin: 0;
-      padding: 20px;
-    }
-    h1 { text-align: center; color: var(--primary); margin-bottom: 30px; }
-    .card {
-      background: var(--card);
-      border-radius: 16px;
-      padding: 18px;
-      margin: 15px 0;
-      box-shadow: 0 4px 20px rgba(0, 255, 157, 0.1);
-    }
-    .stats {
-      display: flex;
-      justify-content: space-around;
-      background: #1a1a1a;
-      padding: 15px;
-      border-radius: 12px;
-      margin: 15px 0;
-    }
-    button {
-      width: 100%;
-      padding: 16px;
-      margin: 10px 0;
-      background: var(--primary);
-      color: #000;
-      border: none;
-      border-radius: 12px;
-      font-weight: bold;
-      font-size: 17px;
-    }
-    pre {
-      background: #111;
-      padding: 15px;
-      border-radius: 10px;
-      overflow: auto;
-      font-size: 14px;
-    }
+    body {font-family: system-ui; margin:0; padding:20px; background:#111; color:#eee;}
+    h1 {text-align:center; color:#0f0;}
+    .card {background:#1f1f1f; border-radius:16px; padding:20px; margin:15px 0;}
+    textarea, button {width:100%; padding:15px; margin:10px 0; border-radius:12px; font-size:17px;}
+    button {background:#00ff9d; color:#000; font-weight:bold;}
+    .stock-card {background:#222; padding:15px; margin:10px 0; border-radius:12px;}
+    pre {background:#0a0a0a; padding:15px; border-radius:10px; overflow:auto;}
   </style>
 </head>
 <body>
-  <h1>🔥 SOP 美觀卡片版 v7</h1>
+  <h1>🔥 SOP 智能卡片 v7</h1>
 
   <div class="card">
-    <label>貼入 Grok 的分析文字（含表格）</label>
+    <label>貼入 Grok 的分析文字</label>
     <textarea id="inputText" rows="12" placeholder="直接貼 Grok 給你的整段分析..."></textarea>
-    <button onclick="parseAndSave()">🤖 智能解析 + 儲存</button>
-  </div>
-
-  <div class="stats">
-    <div>總掃描次數: <strong id="totalScans">0</strong></div>
-    <div>平均總分: <strong id="avgScore">0</strong></div>
+    <button onclick="parseAndSave()">🤖 智能解析並儲存為卡片</button>
   </div>
 
   <div class="card">
@@ -72,38 +28,57 @@
     <div id="history"></div>
   </div>
 
-  <button onclick="exportAllJSON()">📤 匯出全部 JSON</button>
-
   <script>
     function parseAndSave() {
-      const text = document.getElementById('inputText').value.trim();
-      if (!text) return alert("請貼入分析文字");
+      let text = document.getElementById('inputText').value.trim();
+      if (!text) return alert("請貼入文字");
+
+      const time = new Date().toLocaleString('zh-TW');
+
+      // 智能提取表格行
+      const lines = text.split('\n');
+      let parsed = [];
+      let currentStock = {};
+
+      lines.forEach(line => {
+        line = line.trim();
+        if (!line) return;
+
+        // 提取股票 + 分數 + 結論
+        const stockMatch = line.match(/(\d+)\s+([A-Z]+)\s+([+|-]\d+\.\d+%)/);
+        if (stockMatch) {
+          currentStock = {
+            rank: stockMatch[1],
+            stock: stockMatch[2],
+            change: stockMatch[3]
+          };
+        } else if (line.includes('總分')) {
+          const scoreMatch = line.match(/總分估計\s*(\d+–\d+|\d+)/);
+          if (scoreMatch && currentStock.stock) {
+            parsed.push({
+              stock: currentStock.stock,
+              change: currentStock.change,
+              score: scoreMatch[1],
+              note: line
+            });
+            currentStock = {};
+          }
+        }
+      });
 
       const entry = {
-        time: new Date().toLocaleString('zh-TW'),
-        rawText: text,
-        parsedTable: extractTable(text)
+        time: time,
+        raw: text,
+        parsed: parsed.length ? parsed : [{note: text}]
       };
 
       let records = JSON.parse(localStorage.getItem('sopV7') || '[]');
       records.unshift(entry);
       localStorage.setItem('sopV7', JSON.stringify(records));
 
-      alert('✅ 已智能解析並儲存為漂亮卡片！');
+      alert('✅ 已解析並儲存為卡片！');
       document.getElementById('inputText').value = '';
       renderHistory();
-    }
-
-    function extractTable(text) {
-      // 簡單提取表格行（支援你貼的總結表格式）
-      const lines = text.split('\n');
-      let result = [];
-      lines.forEach(line => {
-        if (line.includes('**') || line.includes('|')) {
-          result.push(line.trim());
-        }
-      });
-      return result.join('\n');
     }
 
     function renderHistory() {
@@ -111,26 +86,27 @@
       const records = JSON.parse(localStorage.getItem('sopV7') || '[]');
       let html = '';
       records.forEach(r => {
+        let stocksHTML = '';
+        if (r.parsed && r.parsed.length > 0) {
+          r.parsed.forEach(s => {
+            stocksHTML += `
+              <div class="stock-card">
+                <strong>${s.stock || ''}</strong> ${s.change || ''} 
+                <span style="color:#0f0">總分 ${s.score || ''}</span><br>
+                ${s.note || ''}
+              </div>`;
+          });
+        } else {
+          stocksHTML = `<pre>${r.raw}</pre>`;
+        }
+
         html += `
           <div class="card">
             <strong>${r.time}</strong>
-            <pre>${r.parsedTable || r.rawText}</pre>
+            ${stocksHTML}
           </div>`;
       });
       div.innerHTML = html || '<p>還沒有紀錄</p>';
-
-      // 簡單統計
-      document.getElementById('totalScans').textContent = records.length;
-    }
-
-    function exportAllJSON() {
-      const records = JSON.parse(localStorage.getItem('sopV7') || '[]');
-      const blob = new Blob([JSON.stringify(records, null, 2)], {type: 'application/json'});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `SOP-Records-${new Date().toISOString().slice(0,10)}.json`;
-      a.click();
     }
 
     window.onload = renderHistory;
