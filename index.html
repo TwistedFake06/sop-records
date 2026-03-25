@@ -3,27 +3,28 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SOP Tracker v21</title>
+  <title>SOP Tracker v22</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet">
   <style>
-    .stock-group { margin-bottom: 32px; }
+    .stock-group { margin-bottom: 28px; }
     .stock-card {
       border-left: 5px solid;
       padding: 12px 14px;
       margin-bottom: 8px;
-      font-size: 15px;
+      font-size: 14.5px;
+      line-height: 1.4;
     }
     .high { border-color: #00ff9d; }
     .medium { border-color: #ffaa00; }
     .low { border-color: #888; }
-    .stock-name { font-size: 18px; font-weight: bold; }
+    .stock-name { font-size: 17px; font-weight: bold; }
   </style>
 </head>
 <body class="bg-base-900 text-base-content min-h-screen p-3">
   <div class="max-w-md mx-auto">
 
-    <h1 class="text-3xl font-bold text-center text-primary mb-6">SOP Tracker v21</h1>
+    <h1 class="text-3xl font-bold text-center text-primary mb-6">SOP Tracker v22</h1>
 
     <div class="stats shadow mb-6">
       <div class="stat">
@@ -60,7 +61,7 @@
   </div>
 
   <script>
-    let stockGroups = {};   // 全局存儲，按股票分組
+    let stockGroups = {};   // 按股票分組
 
     function getColorClass(potential) {
       if (potential.includes('高') || potential.includes('★★★')) return 'high';
@@ -107,11 +108,11 @@
                     <div class="text-2xl font-bold text-primary">${totalScore}</div>
                   </div>
                 </div>
-                <div class="text-sm opacity-80 mt-2">
+                <div class="text-sm opacity-80 mt-1">
                   ${change} | A級: ${aScore}<br>
                   ${issue}
                 </div>
-                <div class="mt-3">
+                <div class="mt-2">
                   <span class="badge ${isGreen ? 'badge-success' : 'badge-neutral'}">${potential}</span>
                 </div>
               </div>`);
@@ -131,8 +132,8 @@
       let html = '';
       Object.keys(stockGroups).forEach(stock => {
         html += `
-          <div class="stock-group mb-10">
-            <div class="text-xl font-semibold mb-4 text-primary">${stock}</div>
+          <div class="stock-group mb-8">
+            <div class="text-xl font-semibold mb-3 text-primary">${stock}</div>
             ${stockGroups[stock].join('')}
           </div>`;
       });
