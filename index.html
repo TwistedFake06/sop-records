@@ -3,113 +3,138 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SOP 智能卡片 v7</title>
+  <title>SOP 表格卡片 v9</title>
   <style>
     body {font-family: system-ui; margin:0; padding:20px; background:#111; color:#eee;}
     h1 {text-align:center; color:#0f0;}
-    .card {background:#1f1f1f; border-radius:16px; padding:20px; margin:15px 0;}
-    textarea, button {width:100%; padding:15px; margin:10px 0; border-radius:12px; font-size:17px;}
+    .card {
+      background:#1f1f1f;
+      border-radius:16px;
+      padding:20px;
+      margin:15px 0;
+      box-shadow: 0 4px 20px rgba(0,255,157,0.1);
+    }
+    table {
+      width:100%;
+      border-collapse:collapse;
+      margin:15px 0;
+      background:#222;
+      border-radius:12px;
+      overflow:hidden;
+    }
+    th, td {
+      padding:12px 10px;
+      text-align:left;
+      border-bottom:1px solid #333;
+    }
+    th {background:#2a2a2a; color:#0f0;}
+    textarea, button {
+      width:100%;
+      padding:15px;
+      margin:10px 0;
+      border-radius:12px;
+      font-size:17px;
+    }
     button {background:#00ff9d; color:#000; font-weight:bold;}
-    .stock-card {background:#222; padding:15px; margin:10px 0; border-radius:12px;}
-    pre {background:#0a0a0a; padding:15px; border-radius:10px; overflow:auto;}
+    .temp {color:#888; font-size:14px; margin-top:5px;}
   </style>
 </head>
 <body>
-  <h1>🔥 SOP 智能卡片 v7</h1>
+  <h1>🔥 SOP 表格卡片 v9</h1>
 
   <div class="card">
-    <label>貼入 Grok 的分析文字</label>
-    <textarea id="inputText" rows="12" placeholder="直接貼 Grok 給你的整段分析..."></textarea>
-    <button onclick="parseAndSave()">🤖 智能解析並儲存為卡片</button>
+    <label>貼入 Grok 的分析文字（支援各種表格）</label>
+    <textarea id="inputText" rows="12" placeholder="直接貼 Grok 給你的整段文字..."></textarea>
+    <div class="temp">已自動暫存 • 刷新也不會消失</div>
+    <button onclick="extractAndShow()">🤖 提取表格並顯示卡片</button>
   </div>
 
-  <div class="card">
-    <h2>歷史卡片記錄</h2>
-    <div id="history"></div>
-  </div>
+  <div id="result"></div>
 
   <script>
-    function parseAndSave() {
+    // 自動暫存功能
+    const textarea = document.getElementById('inputText');
+    textarea.addEventListener('input', () => {
+      localStorage.setItem('tempInput', textarea.value);
+    });
+
+    // 載入暫存
+    window.onload = () => {
+      const saved = localStorage.getItem('tempInput');
+      if (saved) textarea.value = saved;
+      loadHistory();
+    };
+
+    function extractAndShow() {
       let text = document.getElementById('inputText').value.trim();
       if (!text) return alert("請貼入文字");
 
       const time = new Date().toLocaleString('zh-TW');
 
-      // 智能提取表格行
+      // 強化表格提取（支援多種格式）
       const lines = text.split('\n');
-      let parsed = [];
-      let currentStock = {};
+      let tableHTML = `<table><tr><th>排名</th><th>股票</th><th>夜盤漲幅</th><th>A級</th><th>總分</th><th>問題/紅旗</th><th>潛力</th><th>建議</th></tr>`;
+
+      let foundTable = false;
 
       lines.forEach(line => {
         line = line.trim();
         if (!line) return;
 
-        // 提取股票 + 分數 + 結論
-        const stockMatch = line.match(/(\d+)\s+([A-Z]+)\s+([+|-]\d+\.\d+%)/);
-        if (stockMatch) {
-          currentStock = {
-            rank: stockMatch[1],
-            stock: stockMatch[2],
-            change: stockMatch[3]
-          };
-        } else if (line.includes('總分')) {
-          const scoreMatch = line.match(/總分估計\s*(\d+–\d+|\d+)/);
-          if (scoreMatch && currentStock.stock) {
-            parsed.push({
-              stock: currentStock.stock,
-              change: currentStock.change,
-              score: scoreMatch[1],
-              note: line
-            });
-            currentStock = {};
+        // 匹配數字開頭 + 股票代碼的行（最常見格式）
+        if (/^\d+\s+[A-Z]+/.test(line)) {
+          foundTable = true;
+          const parts = line.split(/\s+/).filter(p => p);
+          if (parts.length >= 4) {
+            tableHTML += `<tr>
+              <td>${parts[0]}</td>
+              <td>${parts[1]}</td>
+              <td>${parts[2]}</td>
+              <td>${parts[3] || ''}</td>
+              <td>${parts[4] || ''}</td>
+              <td>${parts.slice(5).join(' ')}</td>
+              <td></td>
+              <td></td>
+            </tr>`;
           }
         }
       });
 
-      const entry = {
-        time: time,
-        raw: text,
-        parsed: parsed.length ? parsed : [{note: text}]
-      };
+      tableHTML += `</table>`;
 
-      let records = JSON.parse(localStorage.getItem('sopV7') || '[]');
-      records.unshift(entry);
-      localStorage.setItem('sopV7', JSON.stringify(records));
+      if (!foundTable) {
+        tableHTML = `<p style="color:#ff0;">未能提取到表格，已顯示原始文字：</p><pre>${text}</pre>`;
+      }
 
-      alert('✅ 已解析並儲存為卡片！');
-      document.getElementById('inputText').value = '';
-      renderHistory();
+      const cardHTML = `
+        <div class="card">
+          <strong>${time}</strong>
+          ${tableHTML}
+        </div>`;
+
+      document.getElementById('result').innerHTML = cardHTML;
+
+      // 儲存到歷史
+      let records = JSON.parse(localStorage.getItem('sopTableV9') || '[]');
+      records.unshift({ time, tableHTML });
+      localStorage.setItem('sopTableV9', JSON.stringify(records));
+
+      // 清空暫存
+      localStorage.removeItem('tempInput');
     }
 
-    function renderHistory() {
-      const div = document.getElementById('history');
-      const records = JSON.parse(localStorage.getItem('sopV7') || '[]');
+    function loadHistory() {
+      const div = document.getElementById('result');
+      const records = JSON.parse(localStorage.getItem('sopTableV9') || '[]');
       let html = '';
       records.forEach(r => {
-        let stocksHTML = '';
-        if (r.parsed && r.parsed.length > 0) {
-          r.parsed.forEach(s => {
-            stocksHTML += `
-              <div class="stock-card">
-                <strong>${s.stock || ''}</strong> ${s.change || ''} 
-                <span style="color:#0f0">總分 ${s.score || ''}</span><br>
-                ${s.note || ''}
-              </div>`;
-          });
-        } else {
-          stocksHTML = `<pre>${r.raw}</pre>`;
-        }
-
-        html += `
-          <div class="card">
-            <strong>${r.time}</strong>
-            ${stocksHTML}
-          </div>`;
+        html += `<div class="card">
+          <strong>${r.time}</strong>
+          ${r.tableHTML}
+        </div>`;
       });
       div.innerHTML = html || '<p>還沒有紀錄</p>';
     }
-
-    window.onload = renderHistory;
   </script>
 </body>
 </html>
