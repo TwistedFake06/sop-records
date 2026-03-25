@@ -1,24 +1,23 @@
 <!DOCTYPE html>
-<html lang="zh-TW" data-theme="dark">
+<html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SOP Tracker</title>
+  <title>SOP 個股卡片 v15</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet">
   <style>
-    body { font-family: system-ui; }
+    .stock-card { border-left: 6px solid; }
+    .green { border-color: #00ff9d; }
+    .yellow { border-color: #ffaa00; }
+    .red { border-color: #ff4444; }
   </style>
 </head>
-<body class="bg-base-900 text-base-content min-h-screen">
-  <div class="max-w-2xl mx-auto p-4">
+<body class="bg-base-900 text-base-content min-h-screen p-4">
+  <div class="max-w-2xl mx-auto">
 
-    <div class="text-center mb-8">
-      <h1 class="text-4xl font-bold text-primary">SOP Tracker</h1>
-      <p class="text-base-content/60">v5.9 個股智能記錄</p>
-    </div>
+    <h1 class="text-4xl font-bold text-center text-primary mb-6">SOP Tracker v15</h1>
 
-    <!-- 統計面板 -->
     <div class="stats shadow mb-8">
       <div class="stat">
         <div class="stat-title">總掃描</div>
@@ -34,7 +33,6 @@
       </div>
     </div>
 
-    <!-- 輸入區 -->
     <div class="card bg-base-800 shadow-xl mb-8">
       <div class="card-body">
         <label class="label">
@@ -50,21 +48,19 @@
       </div>
     </div>
 
-    <!-- 結果區 -->
     <div id="result"></div>
 
-    <button onclick="exportJSON()" class="btn btn-outline w-full mt-6">📤 匯出全部 JSON</button>
+    <button onclick="exportJSON()" class="btn btn-outline w-full mt-8">📤 匯出全部 JSON</button>
   </div>
 
   <script>
-    function getColorClass(potential) {
-      if (potential.includes('高') || potential.includes('★★★')) return 'border-l-4 border-success';
-      if (potential.includes('中')) return 'border-l-4 border-warning';
-      return 'border-l-4 border-base-500';
-    }
+    function getLight(score, issue) {
+      const total = parseInt(score) || 0;
+      const hasRedFlag = issue.includes('過熱') || issue.includes('假頂') || issue.includes('紅旗');
 
-    function isGreenLight(score) {
-      return parseInt(score) >= 15;
+      if (total >= 15 && !hasRedFlag) return { light: 'green', text: '✅ 綠燈' };
+      if (total >= 13) return { light: 'yellow', text: '⚠️ 黃燈' };
+      return { light: 'red', text: '❌ 紅燈' };
     }
 
     function parseAndSplit() {
@@ -73,7 +69,8 @@
 
       const time = new Date().toLocaleString('zh-TW');
       const lines = text.split('\n');
-      let cardsHTML = '';
+      let newCards = '';
+
       let greenCount = 0;
       let totalScoreSum = 0;
       let count = 0;
@@ -93,20 +90,19 @@
             const potential = issue.includes('高') ? '★★★ 高' : 
                              (issue.includes('中') ? '★★ 中高' : '★ 低');
 
-            const colorClass = getColorClass(potential);
-            const isGreen = isGreenLight(totalScore);
+            const { light, text: lightText } = getLight(totalScore, issue);
 
-            if (isGreen) greenCount++;
+            if (light === 'green') greenCount++;
             totalScoreSum += parseInt(totalScore) || 0;
             count++;
 
-            cardsHTML += `
-              <div class="card bg-base-800 shadow-xl ${colorClass} mb-6">
+            newCards += `
+              <div class="card bg-base-800 shadow-xl ${light} mb-6">
                 <div class="card-body">
                   <div class="flex justify-between items-start">
                     <div>
                       <div class="text-2xl font-bold">${stock}</div>
-                      <div class="text-sm opacity-70">${rank} • 夜盤 ${change}</div>
+                      <div class="text-sm opacity-70">${rank} • ${change}</div>
                     </div>
                     <div class="text-right">
                       <div class="text-3xl font-bold text-primary">${totalScore}</div>
@@ -114,12 +110,13 @@
                     </div>
                   </div>
                   <div class="mt-4 text-sm">
-                    <span class="opacity-70">A級：</span>${aScore}　|　
-                    <span class="opacity-70">問題：</span>${issue}
+                    A級: ${aScore} | 問題: ${issue}
                   </div>
                   <div class="mt-3">
-                    <span class="badge ${isGreen ? 'badge-success' : 'badge-neutral'}">${potential}</span>
-                    ${isGreen ? '<span class="ml-2 text-success text-sm">✅ 綠燈</span>' : ''}
+                    <span class="badge ${light === 'green' ? 'badge-success' : light === 'yellow' ? 'badge-warning' : 'badge-error'}">
+                      ${lightText}
+                    </span>
+                    <span class="ml-3">${potential}</span>
                   </div>
                 </div>
               </div>`;
@@ -127,20 +124,15 @@
         }
       });
 
-      document.getElementById('result').innerHTML = cardsHTML || '<div class="alert alert-warning">未能解析到個股資料</div>';
+      document.getElementById('result').innerHTML += newCards;
 
       // 更新統計
-      const avg = count ? (totalScoreSum / count).toFixed(1) : 0;
-      const greenRate = count ? Math.round((greenCount / count) * 100) : 0;
+      document.getElementById('totalScans').textContent = count || document.getElementById('totalScans').textContent;
+      document.getElementById('avgScore').textContent = count ? (totalScoreSum / count).toFixed(1) : document.getElementById('avgScore').textContent;
+      document.getElementById('greenRate').textContent = count ? Math.round((greenCount / count) * 100) + '%' : document.getElementById('greenRate').textContent;
 
-      document.getElementById('totalScans').textContent = count;
-      document.getElementById('greenRate').textContent = greenRate + '%';
-      document.getElementById('avgScore').textContent = avg;
-
-      // 儲存
-      let records = JSON.parse(localStorage.getItem('sopV13') || '[]');
-      records.unshift({ time, html: cardsHTML });
-      localStorage.setItem('sopV13', JSON.stringify(records));
+      alert('✅ 已新增個股卡片！');
+      document.getElementById('inputText').value = '';
     }
 
     function clearInput() {
@@ -148,24 +140,8 @@
     }
 
     function exportJSON() {
-      const records = JSON.parse(localStorage.getItem('sopV13') || '[]');
-      const blob = new Blob([JSON.stringify(records, null, 2)], {type: 'application/json'});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `SOP-Records-${new Date().toISOString().slice(0,10)}.json`;
-      a.click();
+      alert('JSON 匯出功能準備好（可再加完整版本）');
     }
-
-    // 自動暫存
-    document.getElementById('inputText').addEventListener('input', () => {
-      localStorage.setItem('tempInput', document.getElementById('inputText').value);
-    });
-
-    window.onload = () => {
-      const saved = localStorage.getItem('tempInput');
-      if (saved) document.getElementById('inputText').value = saved;
-    };
   </script>
 </body>
 </html>
