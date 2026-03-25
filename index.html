@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SOP 表格卡片 v9</title>
+  <title>SOP 表格卡片 v10</title>
   <style>
     body {font-family: system-ui; margin:0; padding:20px; background:#111; color:#eee;}
     h1 {text-align:center; color:#0f0;}
@@ -36,31 +36,45 @@
       font-size:17px;
     }
     button {background:#00ff9d; color:#000; font-weight:bold;}
-    .temp {color:#888; font-size:14px; margin-top:5px;}
+    .stats {
+      display:flex;
+      justify-content:space-around;
+      background:#1a1a1a;
+      padding:15px;
+      border-radius:12px;
+      margin:15px 0;
+    }
   </style>
 </head>
 <body>
-  <h1>🔥 SOP 表格卡片 v9</h1>
+  <h1>🔥 SOP 表格卡片 v10</h1>
 
   <div class="card">
-    <label>貼入 Grok 的分析文字（支援各種表格）</label>
+    <label>貼入 Grok 的分析文字</label>
     <textarea id="inputText" rows="12" placeholder="直接貼 Grok 給你的整段文字..."></textarea>
-    <div class="temp">已自動暫存 • 刷新也不會消失</div>
+    <div style="color:#888; font-size:14px; margin-top:5px;">已自動暫存 • 刷新不會消失</div>
     <button onclick="extractAndShow()">🤖 提取表格並顯示卡片</button>
+    <button onclick="clearInput()" style="background:#666;">🗑 清空輸入</button>
+  </div>
+
+  <div class="stats">
+    <div>總掃描次數: <strong id="totalScans">0</strong></div>
+    <div>平均總分: <strong id="avgScore">0</strong></div>
   </div>
 
   <div id="result"></div>
 
+  <button onclick="exportJSON()" style="background:#00bfff;">📤 匯出全部 JSON</button>
+
   <script>
-    // 自動暫存功能
+    // 自動暫存
     const textarea = document.getElementById('inputText');
     textarea.addEventListener('input', () => {
-      localStorage.setItem('tempInput', textarea.value);
+      localStorage.setItem('tempInputV10', textarea.value);
     });
 
-    // 載入暫存
     window.onload = () => {
-      const saved = localStorage.getItem('tempInput');
+      const saved = localStorage.getItem('tempInputV10');
       if (saved) textarea.value = saved;
       loadHistory();
     };
@@ -71,19 +85,13 @@
 
       const time = new Date().toLocaleString('zh-TW');
 
-      // 強化表格提取（支援多種格式）
+      // 強化表格提取
       const lines = text.split('\n');
-      let tableHTML = `<table><tr><th>排名</th><th>股票</th><th>夜盤漲幅</th><th>A級</th><th>總分</th><th>問題/紅旗</th><th>潛力</th><th>建議</th></tr>`;
-
-      let foundTable = false;
+      let tableHTML = `<table><tr><th>排名</th><th>股票</th><th>漲幅</th><th>A級</th><th>總分</th><th>問題</th><th>潛力</th><th>建議</th></tr>`;
 
       lines.forEach(line => {
         line = line.trim();
-        if (!line) return;
-
-        // 匹配數字開頭 + 股票代碼的行（最常見格式）
         if (/^\d+\s+[A-Z]+/.test(line)) {
-          foundTable = true;
           const parts = line.split(/\s+/).filter(p => p);
           if (parts.length >= 4) {
             tableHTML += `<tr>
@@ -92,19 +100,15 @@
               <td>${parts[2]}</td>
               <td>${parts[3] || ''}</td>
               <td>${parts[4] || ''}</td>
-              <td>${parts.slice(5).join(' ')}</td>
-              <td></td>
-              <td></td>
+              <td>${parts.slice(5, -2).join(' ')}</td>
+              <td>${parts[parts.length-2] || ''}</td>
+              <td>${parts[parts.length-1] || ''}</td>
             </tr>`;
           }
         }
       });
 
       tableHTML += `</table>`;
-
-      if (!foundTable) {
-        tableHTML = `<p style="color:#ff0;">未能提取到表格，已顯示原始文字：</p><pre>${text}</pre>`;
-      }
 
       const cardHTML = `
         <div class="card">
@@ -114,18 +118,19 @@
 
       document.getElementById('result').innerHTML = cardHTML;
 
-      // 儲存到歷史
-      let records = JSON.parse(localStorage.getItem('sopTableV9') || '[]');
-      records.unshift({ time, tableHTML });
-      localStorage.setItem('sopTableV9', JSON.stringify(records));
+      // 儲存歷史
+      let records = JSON.parse(localStorage.getItem('sopV10') || '[]');
+      records.unshift({ time, tableHTML, raw: text });
+      localStorage.setItem('sopV10', JSON.stringify(records));
 
       // 清空暫存
-      localStorage.removeItem('tempInput');
+      localStorage.removeItem('tempInputV10');
+      loadHistory();
     }
 
     function loadHistory() {
       const div = document.getElementById('result');
-      const records = JSON.parse(localStorage.getItem('sopTableV9') || '[]');
+      const records = JSON.parse(localStorage.getItem('sopV10') || '[]');
       let html = '';
       records.forEach(r => {
         html += `<div class="card">
@@ -134,6 +139,24 @@
         </div>`;
       });
       div.innerHTML = html || '<p>還沒有紀錄</p>';
+
+      // 簡單統計
+      document.getElementById('totalScans').textContent = records.length;
+    }
+
+    function clearInput() {
+      document.getElementById('inputText').value = '';
+      localStorage.removeItem('tempInputV10');
+    }
+
+    function exportJSON() {
+      const records = JSON.parse(localStorage.getItem('sopV10') || '[]');
+      const blob = new Blob([JSON.stringify(records, null, 2)], {type: 'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `SOP-Records-${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
     }
   </script>
 </body>
